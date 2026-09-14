@@ -11,3 +11,6 @@ pinecone
 sentence-transformers
 beautifulsoup4
 python-dotenv
+# Backend API server
+fastapi
+uvicorn[standard]

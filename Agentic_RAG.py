@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from langchain_community.document_loaders import WebBaseLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceInferenceAPIEmbeddings
+from langchain_huggingface import HuggingFaceEndpointEmbeddings
 from pinecone import Pinecone, ServerlessSpec
 from langchain_pinecone import PineconeVectorStore
 from langchain_groq import ChatGroq
@@ -52,9 +52,9 @@ splitter = RecursiveCharacterTextSplitter(
 chunks = splitter.split_documents(raw_docs)
 
 # Use Hugging Face Inference API instead of downloading local PyTorch weights into RAM
-embeddings = HuggingFaceInferenceAPIEmbeddings(
-    api_key=HF_TOKEN,
-    model_name="sentence-transformers/all-MiniLM-L6-v2"
+embeddings = HuggingFaceEndpointEmbeddings(
+    model="sentence-transformers/all-MiniLM-L6-v2",
+    huggingfacehub_api_token=HF_TOKEN,
 )
 
 INDEX_NAME = "industry-agentic-rag-kb"

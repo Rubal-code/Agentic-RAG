@@ -1,6 +1,6 @@
 """
 FastAPI backend wrapper for the Agentic RAG LangGraph workflow.
-Exposes POST /api/chat and GET /health endpoints.
+Exposes POST /api/chat, GET /health, and GET / endpoints.
 """
 
 import sys
@@ -42,15 +42,10 @@ api = FastAPI(
     lifespan=lifespan,
 )
 
-# Allow Vite dev server + any localhost port
+# Allow Vite dev server + any localhost or deployed production domain
 api.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -97,6 +92,15 @@ NODE_LABELS: Dict[str, str] = {
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+@api.get("/")
+async def root():
+    """Root endpoint to pass basic platform health pings."""
+    return {
+        "status": "online",
+        "message": "Agentic RAG API is live. Send POST requests to /api/chat or GET to /health."
+    }
+
+
 @api.get("/health")
 async def health():
     """Readiness probe — returns 503 if workflow failed to initialise."""

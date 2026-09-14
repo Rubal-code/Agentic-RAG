@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from langchain_community.document_loaders import WebBaseLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceInferenceAPIEmbeddings
 from pinecone import Pinecone, ServerlessSpec
 from langchain_pinecone import PineconeVectorStore
 from langchain_groq import ChatGroq
@@ -31,6 +31,9 @@ if not os.getenv("TAVILY_API_KEY"):
 if not os.getenv("PINECONE_API_KEY"):
     os.environ["PINECONE_API_KEY"] = getpass("Enter PINECONE_API_KEY: ")
 
+# Hugging Face token is required for remote serverless embeddings
+HF_TOKEN = os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACEHUB_API_TOKEN")
+
 # ==========================================
 # 2. Load Documents & Prepare Vector DB
 # ==========================================
@@ -48,9 +51,10 @@ splitter = RecursiveCharacterTextSplitter(
 )
 chunks = splitter.split_documents(raw_docs)
 
-embeddings = HuggingFaceEmbeddings(
-    model_name="sentence-transformers/all-MiniLM-L6-v2",
-    encode_kwargs={"normalize_embeddings": True},
+# Use Hugging Face Inference API instead of downloading local PyTorch weights into RAM
+embeddings = HuggingFaceInferenceAPIEmbeddings(
+    api_key=HF_TOKEN,
+    model_name="sentence-transformers/all-MiniLM-L6-v2"
 )
 
 INDEX_NAME = "industry-agentic-rag-kb"

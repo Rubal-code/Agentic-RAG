@@ -1,6 +1,6 @@
 """
 FastAPI backend wrapper for the Agentic RAG LangGraph workflow.
-Exposes POST /api/chat, GET /health, and GET / endpoints.
+Exposes POST /api/chat, GET /health, and serves the frontend UI from /dist.
 """
 
 import sys
@@ -10,6 +10,8 @@ from typing import Any, Dict, List
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 # ---------------------------------------------------------------------------
@@ -42,7 +44,7 @@ api = FastAPI(
     lifespan=lifespan,
 )
 
-# Allow Vite dev server + any localhost or deployed production domain
+# Allow CORS requests
 api.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -90,17 +92,8 @@ NODE_LABELS: Dict[str, str] = {
 
 
 # ---------------------------------------------------------------------------
-# Endpoints
+# API Endpoints
 # ---------------------------------------------------------------------------
-@api.get("/")
-async def root():
-    """Root endpoint to pass basic platform health pings."""
-    return {
-        "status": "online",
-        "message": "Agentic RAG API is live. Send POST requests to /api/chat or GET to /health."
-    }
-
-
 @api.get("/health")
 async def health():
     """Readiness probe — returns 503 if workflow failed to initialise."""
@@ -135,7 +128,6 @@ async def chat(request: ChatRequest):
     final_state: Dict[str, Any] = {}
 
     try:
-        # stream() yields (node_name, state_update) tuples
         for step in langgraph_app.stream(initial_state, stream_mode="updates"):
             for node_name, state_update in step.items():
                 nodes_visited.append(node_name)
@@ -155,3 +147,31 @@ async def chat(request: ChatRequest):
         retry_count=int(final_state.get("retry_count", 0)),
         steps=steps,
     )
+
+
+# ---------------------------------------------------------------------------
+# Static Frontend Files & Client-Side Routing Fallback
+# ---------------------------------------------------------------------------
+frontend_dist = os.path.join(os.path.dirname(__file__), "dist")
+
+if os.path.exists(frontend_dist):
+    assets_dir = os.path.join(frontend_dist, "assets")
+    if os.path.exists(assets_dir):
+        api.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+
+    @api.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        # Exclude backend API routes
+        if full_path.startswith("api/") or full_path == "health":
+            raise HTTPException(status_code=404, detail="API endpoint not found")
+
+        file_path = os.path.join(frontend_dist, full_path)
+        if os.path.isfile(file_path):
+            return FileResponse(file_path)
+
+        # Fallback to index.html for Single Page Applications
+        index_path = os.path.join(frontend_dist, "index.html")
+        if os.path.exists(index_path):
+            return FileResponse(index_path)
+        
+        raise HTTPException(status_code=404, detail="Index file not found")
